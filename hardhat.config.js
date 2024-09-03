@@ -3,10 +3,10 @@ require("dotenv").config();
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-  defaultNetwork: "localhost",
-  // defaultNetwork: "sepolia",
+  // defaultNetwork: "localhost",
+  defaultNetwork: "amoy",
   networks: {
-    sepolia: {
+    amoy: {
       url: process.env.RPC_URL,
       accounts: [process.env.PRIVATE_KEY],
     },

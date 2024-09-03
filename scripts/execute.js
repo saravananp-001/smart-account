@@ -1,11 +1,27 @@
 const hre = require("hardhat");
 // const { ethers } = require("ethers");
 
-const ENTRYPOINT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
-const FACTORY_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
-const sender_mysmartAccount = "0xbd7f2c56633a4ea4474bae6f46b16c86021d7d88";
-const second_address = "0x34E0fEf5e0116669Ee11A7a0ab520c70eB010B4C"
+const ENTRYPOINT_ADDRESS = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
+const FACTORY_ADDRESS = "0x5ed4386F818f34f1f0c5b13C8eD513eDdF407B30";
+const mysmartAccount = "0x76f1035c431853450aa27853247e7f0bc03e4a59";
+const second_address = "0xA69B64b4663ea5025549E8d7B90f167D6F0610B3"
+const ERC20_contract = "0x6dbA02d1A9f8248aCe5fFE63a0d75e98C157a430"
+const salt = 123;
+
+const IERC20_ABI = [
+  "function totalSupply() external view returns (uint256)",
+  "function balanceOf(address account) external view returns (uint256)",
+  "function transfer(address recipient, uint256 amount) external returns (bool)",
+  "function allowance(address owner, address spender) external view returns (uint256)",
+  "function approve(address spender, uint256 amount) external returns (bool)",
+  "function transferFrom(address sender, address recipient, uint256 amount) external returns (bool)",
+  "event Transfer(address indexed from, address indexed to, uint256 value)",
+  "event Approval(address indexed owner, address indexed spender, uint256 value)"
+];
+
+
 async function main() {
+  const IERC20Interface = new ethers.Interface(IERC20_ABI);
 
   // Get the EntryPoint contract
   const EPoint = await hre.ethers.getContractAt("EntryPoint", ENTRYPOINT_ADDRESS);
@@ -26,10 +42,13 @@ async function main() {
   const bytecodeWithArgs = Account.bytecode + encodedArgs.slice(2);
 
   // check with accountFactory function
-  const senderAddress = await AFactory.estimatedAddress(bytecodeWithArgs,123);
+  const senderAddress = await AFactory.estimatedAddress(bytecodeWithArgs,salt);
   console.log('senderAddress from accountFactory :', senderAddress);
   
-  var initCode = FACTORY_ADDRESS + AccountFactory.interface.encodeFunctionData("deploy", [bytecodeWithArgs,123]).slice(2);  // its for initial account deployment
+  var initCode = FACTORY_ADDRESS + AccountFactory.interface.encodeFunctionData("deploy", [bytecodeWithArgs,salt]).slice(2);  // its for initial account deployment
+  
+  //construct data for the token transaction
+  const data = IERC20Interface.encodeFunctionData("transfer", [second_address, 2000000000]);
 
   var sender ;
   try {
@@ -37,45 +56,77 @@ async function main() {
   }
   catch(Ex)
   {
-    console.log('exdata',Ex.data.data);
-    sender  = '0x'+ Ex.data.data.slice(-40);
+    sender = "0x" + Ex.data.slice(-40);
   }
   console.log({ sender });
 
   const codeLength = await hre.ethers.provider.getCode(sender);
-  // console.log({codeLength});
   if(codeLength != "0x")
   {
     initCode = "0x";
   }
   
 
-  // console.log({ initCode });
+  console.log("nounce",await EPoint.getNonce(sender, 0));
+  // const value = ethers.parseEther('0.017844'); //.017844940017782425
+  // console.log("value", value);
   const userOp = {
     sender,
-    nonce: await EPoint.getNonce(senderAddress, 0),
+    nonce:  "0x" + (await EPoint.getNonce(sender, 0)).toString(16),
     initCode,
-    callData:Account.interface.encodeFunctionData("execute",[second_address,43000000,"0x"]),
-    // callData: Account.interface.encodeFunctionData("withdrawDepositTo",[sender_mysmartAccount,1588765661730373]),
-    callGasLimit: 1_000_000, // Try increasing to 1,000,000
-    verificationGasLimit: 1_500_000, // Try increasing to 1,500,000
-    preVerificationGas: 200_000, // Try increasing to 200,000    
-    maxFeePerGas: ethers.parseUnits("10", "gwei"),
-    maxPriorityFeePerGas: ethers.parseUnits("5", "gwei"), 
+    callData:Account.interface.encodeFunctionData("execute",[ERC20_contract,0,data]),
+    // callData:Account.interface.encodeFunctionData("execute",[second_address,3232212,"0x"]),
     paymasterAndData: "0x", // we're not using a paymaster, for now
-    signature: "0x", // we're not validating a signature, for now
+    signature: "0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c", // we're not validating a signature, for now
   }
 
-  console.log('nounce',userOp.nonce);
-    const userOpHash = await EPoint.getUserOpHash(userOp);
-    userOp.signature = await signer0.signMessage(hre.ethers.getBytes(userOpHash));
+  console.log({userOp});
+  const { preVerificationGas, verificationGasLimit, callGasLimit } =
+  await ethers.provider.send("eth_estimateUserOperationGas", [
+    userOp,
+    ENTRYPOINT_ADDRESS,
+  ]);
+
+  userOp.preVerificationGas = preVerificationGas;
+  userOp.verificationGasLimit = verificationGasLimit;
+  userOp.callGasLimit = callGasLimit;
+
+  var { maxFeePerGas } = await ethers.provider.getFeeData();
+  console.log("Max Fee Per Gas:", maxFeePerGas);
+  userOp.maxFeePerGas = "0x" + maxFeePerGas.toString(16);
+
+  const maxPriorityFeePerGas = await ethers.provider.send(
+    "rundler_maxPriorityFeePerGas"
+  );
+  userOp.maxPriorityFeePerGas = maxPriorityFeePerGas;
+
+  const userOpHash = await EPoint.getUserOpHash(userOp);
+  userOp.signature = await signer0.signMessage(hre.ethers.getBytes(userOpHash));
   
 
+  const opHash = await ethers.provider.send("eth_sendUserOperation", [
+    userOp,
+    ENTRYPOINT_ADDRESS,
+  ]);
+
+  console.log("User Operation Hash:", opHash);
+  
+  async function getUserOperationByHash(opHash, delay = 2000) {
+    for (let i = 0; true; i++) {
+      const response = await ethers.provider.send("eth_getUserOperationByHash", [opHash]);
+      
+      if (response.transactionHash) {
+        return response;
+      }
+  
+      // Wait for a specified delay before retrying
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
   try {
-    // Sending a transaction using handleOps and waiting for it to be mined
-    const tx = await EPoint.handleOps([userOp], address0);
-    const receipt = await tx.wait();
-    console.log("receipt:", receipt);
+    const userOperation = await getUserOperationByHash(opHash);
+    console.log("transaction hash:", userOperation.transactionHash);
   } catch (error) {
     console.error("Error:", error);
   }
