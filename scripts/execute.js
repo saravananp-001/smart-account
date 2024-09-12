@@ -19,7 +19,8 @@ const IERC20_ABI = [
   "event Approval(address indexed owner, address indexed spender, uint256 value)"
 ];
 
-
+const USER_OP_RPC_URL="http://0.0.0.0:14337/rpc";
+const userOpProvider = new ethers.JsonRpcProvider(USER_OP_RPC_URL);
 async function main() {
   const IERC20Interface = new ethers.Interface(IERC20_ABI);
 
@@ -48,7 +49,7 @@ async function main() {
   var initCode = FACTORY_ADDRESS + AccountFactory.interface.encodeFunctionData("deploy", [bytecodeWithArgs,salt]).slice(2);  // its for initial account deployment
   
   //construct data for the token transaction
-  const data = IERC20Interface.encodeFunctionData("transfer", [second_address, 2000000000]);
+  const data = IERC20Interface.encodeFunctionData("transfer", [second_address, 700000000]);
 
   var sender ;
   try {
@@ -68,20 +69,20 @@ async function main() {
   
 
   console.log("nounce",await EPoint.getNonce(sender, 0));
-  // const value = ethers.parseEther('0.017844'); //.017844940017782425
-  // console.log("value", value);
+  const value = ethers.parseEther('0.10');
+  console.log("value", value);
   const userOp = {
     sender,
     nonce:  "0x" + (await EPoint.getNonce(sender, 0)).toString(16),
     initCode,
-    callData:Account.interface.encodeFunctionData("execute",[ERC20_contract,0,data]),
-    // callData:Account.interface.encodeFunctionData("execute",[second_address,3232212,"0x"]),
+    // callData:Account.interface.encodeFunctionData("execute",[ERC20_contract,0,data]),
+    callData:Account.interface.encodeFunctionData("execute",[second_address,value,"0x"]),
     paymasterAndData: "0x", // we're not using a paymaster, for now
     signature: "0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c", // we're not validating a signature, for now
   }
 
-  console.log({userOp});
-  const { preVerificationGas, verificationGasLimit, callGasLimit } =
+  // console.log({userOp});
+  const { preVerificationGas, verificationGasLimit, callGasLimit} =
   await ethers.provider.send("eth_estimateUserOperationGas", [
     userOp,
     ENTRYPOINT_ADDRESS,
@@ -90,43 +91,52 @@ async function main() {
   userOp.preVerificationGas = preVerificationGas;
   userOp.verificationGasLimit = verificationGasLimit;
   userOp.callGasLimit = callGasLimit;
+  // userOp.maxFeePerGas = maxFeePerGas;
+  // userOp.maxPriorityFeePerGas = maxPriorityFeePerGas;
 
   var { maxFeePerGas } = await ethers.provider.getFeeData();
-  console.log("Max Fee Per Gas:", maxFeePerGas);
   userOp.maxFeePerGas = "0x" + maxFeePerGas.toString(16);
+  // userOp.maxPriorityFeePerGas = "0x" + maxPriorityFeePerGas.toString(16);
 
-  const maxPriorityFeePerGas = await ethers.provider.send(
-    "rundler_maxPriorityFeePerGas"
+  const {maxPriorityFeePerGas} = await userOpProvider.send(
+    "skandha_getGasPrice"
   );
+  
+  // const maxPriorityFeePerGas = await ethers.provider.send(
+  //   "rundler_maxPriorityFeePerGas"
+  // );
   userOp.maxPriorityFeePerGas = maxPriorityFeePerGas;
 
   const userOpHash = await EPoint.getUserOpHash(userOp);
   userOp.signature = await signer0.signMessage(hre.ethers.getBytes(userOpHash));
   
+  console.log({userOp});
 
-  const opHash = await ethers.provider.send("eth_sendUserOperation", [
+  // Send the user operation to the bundler
+  const opHash = await userOpProvider.send("eth_sendUserOperation", [
     userOp,
     ENTRYPOINT_ADDRESS,
   ]);
 
   console.log("User Operation Hash:", opHash);
   
-  async function getUserOperationByHash(opHash, delay = 2000) {
-    for (let i = 0; true; i++) {
-      const response = await ethers.provider.send("eth_getUserOperationByHash", [opHash]);
-      
-      if (response.transactionHash) {
-        return response;
-      }
+  // async function getUserOperationByHash(opHash, delay = 2000) {
+  //   for (let i = 0; true; i++) {
+  //     const response = await userOpProvider.send("eth_getUserOperationByHash", [opHash]);
+  //     console.log("User Operation Hash:", response);
+  //     if (!(response.result === null) && response.transactionHash) {
+  //       return response;
+  //     }
   
-      // Wait for a specified delay before retrying
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
+  //     // Wait for a specified delay before retrying
+  //     await new Promise(resolve => setTimeout(resolve, delay));
+  //   }
+  // }
 
   try {
-    const userOperation = await getUserOperationByHash(opHash);
-    console.log("transaction hash:", userOperation.transactionHash);
+    // const userOperation = await getUserOperationByHash(opHash);
+    // console.log("transaction hash:", userOperation.transactionHash);
+    console.log("User Operation Hash:", opHash);
   } catch (error) {
     console.error("Error:", error);
   }
