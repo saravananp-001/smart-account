@@ -9,3 +9,8 @@ npx hardhat node
 npx hardhat run scripts/deploy.js
 npx hardhat run scripts/execute.js
 ```
+For verify the contracts
+
+```shell
+npx hardhat verify --network polygon DEPLOYED_CONTRACT_ADDRESS "constructorArg1" "constructorArg2"
+```
