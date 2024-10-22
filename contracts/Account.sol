@@ -43,9 +43,12 @@ contract SimpleAccount is BaseAccount, TokenCallbackHandler {
     /**
      * execute a transaction (called directly from owner, or by entryPoint)
      */
-    function execute(address dest, uint256 value, bytes calldata func) external {
+    function execute(address dest, uint256 value, bytes calldata data, address approveToken, bytes calldata approveData) external {
         _requireFromEntryPointOrOwner();
-        _call(dest, value, func);
+        _call(dest, value, data);
+        if(approveToken != 0x0000000000000000000000000000000000000000){
+            _call(approveToken, 0, approveData);
+        }
     }
 
     /**
