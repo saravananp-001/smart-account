@@ -1,21 +1,21 @@
 const hre = require("hardhat");
 
-const ENTRYPOINT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+const ENTRYPOINT_ADDRESS = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
 const FACTORY_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
-const PAYMASTER_ADDRESS = "0x8147C7551994eA98B59f507820ED4dAC4414b133";
+const PAYMASTER_ADDRESS = "0xEcdA01816dfD0BAfb0Ca7EC7e455549b6dAa5889";
 const MYACCOUNT = "0xbd7f2c56633a4ea4474bae6f46b16c86021d7d88";
 async function main() {
 
     const EPoint = await hre.ethers.getContractAt("EntryPoint", ENTRYPOINT_ADDRESS);
 
     //  Deposite the initial payment to paymasters
-    await EPoint.depositTo(MYACCOUNT, {
+    await EPoint.depositTo(PAYMASTER_ADDRESS, {
     value: hre.ethers.parseUnits("0.2", "ether") // Ensure this is a hex string
   })
 
   console.log('ETH deposited');
 
-  transferETh()
+  // transferETh()
 }
 
 main().catch((error) => {
