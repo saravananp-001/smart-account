@@ -7,14 +7,8 @@ const FACTORY_ADDRESS = "0x5ed4386F818f34f1f0c5b13C8eD513eDdF407B30";
 const mysmartAccount = "0x7d41Cc4F78a68120ce74Bfa82f16DCE48B3C8214";
 const second_address = "0xA69B64b4663ea5025549E8d7B90f167D6F0610B3"
 const ERC20_contract = "0xF757Dd3123b69795d43cB6b58556b3c6786eAc13"
-// const PAYMASTER_ADDRESS = "0x8147C7551994eA98B59f507820ED4dAC4414b133"; // louicepaymaster
-// const PAYMASTER_ADDRESS = "0x74169B3b77D81BDcE94B4559678c6DD7a1F52540"; // novalidation(working) no => postops, context creation
-// const PAYMASTER_ADDRESS = "0x53c66C4D8CC377Df00F80c1510326915dd1Aacd8"; // novalidation (working) postops(event), simple context create
-// const PAYMASTER_ADDRESS = "0xB8fAEF99fbCE551D1a7A56aC7Cc919dcB57f002F"; // novalidation (working) postops(event), proper context create with no signatue validation
-// const PAYMASTER_ADDRESS = "0xdBf5Cf9871766b6a9A68903Bf3acF3Cb799F4Dc2"; // novalidation (working) postops(event, decode), proper context create with signature validation
-// const PAYMASTER_ADDRESS = "0x3cBC16570292755fC0c9508bF0e1Cf2cdd9E522d"; // novalidation (not working) when have the transferFrom
-const PAYMASTER_ADDRESS = "0xEcdA01816dfD0BAfb0Ca7EC7e455549b6dAa5889" // working code
-// const PAYMASTER_ADDRESS = "0x9776303047A86DB46db6376f7A2296C3489AEFE9"; // dummyPaymaster(working)
+const PAYMASTER_ADDRESS = "0xDd74396fb58c32247d8E2410e853a73f71053252"; // louicepaymaster
+
 const salt = 123;
 
 const IERC20_ABI = [
@@ -105,7 +99,7 @@ async function main() {
   // console.log({dummyTokenApprove});
 
   //construct data for the token transaction
-  const data = IERC20Interface.encodeFunctionData("transfer", [second_address, 2000000000 ]);
+  const data = IERC20Interface.encodeFunctionData("transfer", [second_address, 500000000 ]);
   // console.log({data});
 
   var sender ;
@@ -134,11 +128,11 @@ async function main() {
     nonce:  "0x" + (await EPoint.getNonce(sender, 0)).toString(16),
     initCode,
     // callData:Account.interface.encodeFunctionData("execute",[ERC20_contract, 0, data, "0x0000000000000000000000000000000000000000", "0x"]),
-    // callData:Account.interface.encodeFunctionData("execute",[ERC20_contract, 0, data, ERC20_contract, dummyTokenApprove]),
-    callData:Account.interface.encodeFunctionData("execute",[second_address,value,"0x", ERC20_contract, dummyTokenApprove]),
+    callData:Account.interface.encodeFunctionData("execute",[ERC20_contract, 0, data, ERC20_contract, dummyTokenApprove]),
+    // callData:Account.interface.encodeFunctionData("execute",[second_address,value,"0x", ERC20_contract, dummyTokenApprove]),
     // callData:"0x",
     paymasterAndData: PAYMASTER_ADDRESS + "F756Dd3123b69795d43cB6b58556b3c6786eAc13010000671a219600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000013b5e557e4601a264c654f3f0235ed381fc08b5ffea980e403bc807e27433586b0eb1abe122723125fc4d62ef605943f53a0c87893af3cfd6d33c3924cb0a4328ab0da981c", // we're not using a paymaster, for now
-    // paymasterAndData:PAYMASTER_ADDRESS,
+    // paymasterAndData:"0x",
     signature: "0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c", // we're not validating a signature, for now
   }
 
@@ -176,7 +170,7 @@ async function main() {
   const FeeTokenApprove = IERC20Interface.encodeFunctionData("approve", [PAYMASTER_ADDRESS, actualTokenCost]);
   console.log('FeeTokenApprove : ', FeeTokenApprove);
 
-  userOp.callData = Account.interface.encodeFunctionData("execute",[second_address,value,"0x", ERC20_contract, FeeTokenApprove]);
+  userOp.callData = Account.interface.encodeFunctionData("execute",[ERC20_contract, 0, data, ERC20_contract, FeeTokenApprove]);
   
   const paymasterData = await getSponserFromPaymaster(userOp);
   userOp.paymasterAndData = PAYMASTER_ADDRESS + paymasterData;

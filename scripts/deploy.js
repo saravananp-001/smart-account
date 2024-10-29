@@ -8,7 +8,7 @@ async function main() {
   // const AccountFactory = await hre.ethers.deployContract("AccountFactory",["0xb87a472325C42BfC137499539C1A966Bce9ce10A"]);
   // await AccountFactory.waitForDeployment();
 
-  const Paymaster = await hre.ethers.deployContract("NoValidationPaymaster",["0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789","0xb87a472325C42BfC137499539C1A966Bce9ce10A"]);
+  const Paymaster = await hre.ethers.deployContract("LouicePaymaster",["0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789","0xb87a472325C42BfC137499539C1A966Bce9ce10A"]);
   await Paymaster.waitForDeployment();
     
   // const Paymaster = await hre.ethers.deployContract("Paymaster");

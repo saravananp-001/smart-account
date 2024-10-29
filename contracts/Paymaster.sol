@@ -35,13 +35,22 @@ contract LouicePaymaster is BasePaymaster {
 
     //calculated cost of the postOp
     uint256 constant public COST_OF_POST = 35000;
-    mapping(IERC20Metadata => uint256) public balances;
     //
 
     event UserOperationSponsored(address indexed sender, address indexed token, uint256 cost);
 
     constructor(IEntryPoint _entryPoint, address _owner) BasePaymaster(_entryPoint) {
         _transferOwnership(_owner);
+    }
+
+    /**
+     * Balance of the Token
+     * @notice Gets the token balance of this contract
+     * @param token The address of the ERC20 token
+     * @return The token balance of this contract
+     */
+    function balanceOfToken(IERC20Metadata token) external view returns(uint256){
+        return token.balanceOf(address(this));
     }
 
     /**
@@ -52,7 +61,6 @@ contract LouicePaymaster is BasePaymaster {
      */
     function withdrawTokensTo(IERC20Metadata token, address target, uint256 amount) public {
         require(owner() == msg.sender, "CP00: only owner can withdraw tokens");
-        balances[token] -= amount;
         token.safeTransfer(target, amount);
     }
 
@@ -155,7 +163,6 @@ contract LouicePaymaster is BasePaymaster {
         }
         if (mode != PostOpMode.postOpReverted) {
             token.safeTransferFrom(account, address(this), actualTokenCost);
-            balances[token] += actualTokenCost;
             emit UserOperationSponsored(account, address(token), actualTokenCost);
         }
     }
